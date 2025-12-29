@@ -34,13 +34,13 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IERC20__factory>;
     getContractFactory(
-      name: "Counter",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.Counter__factory>;
-    getContractFactory(
       name: "FlashLoan",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.FlashLoan__factory>;
+    getContractFactory(
+      name: "IUniswapV2Router",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IUniswapV2Router__factory>;
 
     getContractAt(
       name: "FlashLoanSimpleReceiverBase",
@@ -68,15 +68,15 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.IERC20>;
     getContractAt(
-      name: "Counter",
+      name: "FlashLoan",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
-    ): Promise<Contracts.Counter>;
+    ): Promise<Contracts.FlashLoan>;
     getContractAt(
-      name: "FlashLoan",
+      name: "IUniswapV2Router",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
-    ): Promise<Contracts.FlashLoan>;
+    ): Promise<Contracts.IUniswapV2Router>;
 
     deployContract(
       name: "FlashLoanSimpleReceiverBase",
@@ -99,13 +99,13 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC20>;
     deployContract(
-      name: "Counter",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.Counter>;
-    deployContract(
       name: "FlashLoan",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.FlashLoan>;
+    deployContract(
+      name: "IUniswapV2Router",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IUniswapV2Router>;
 
     deployContract(
       name: "FlashLoanSimpleReceiverBase",
@@ -133,15 +133,15 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC20>;
     deployContract(
-      name: "Counter",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.Counter>;
-    deployContract(
       name: "FlashLoan",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.FlashLoan>;
+    deployContract(
+      name: "IUniswapV2Router",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IUniswapV2Router>;
 
     // default types
     getContractFactory(

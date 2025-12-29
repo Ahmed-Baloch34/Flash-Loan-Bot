@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-[#09090b] text-slate-200; /* Very Dark Background */
+  font-family: 'Inter', monospace;
+  overflow-x: hidden;
+}
+
+/* Glassmorphism Cards */
+.glass-card {
+    background: rgba(30, 41, 59, 0.4); /* Semi-transparent dark blue */
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(8px); /* Blurry background behind card */
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+/* Terminal Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a; 
+}
+::-webkit-scrollbar-thumb {
+  background: #334155; 
+  border-radius: 4px;
+}

@@ -18,7 +18,7 @@ export type { IPoolAddressesProvider } from "./@aave/core-v3/contracts/interface
 export { IPoolAddressesProvider__factory } from "./factories/@aave/core-v3/contracts/interfaces/IPoolAddressesProvider__factory";
 export type { IERC20 } from "./@openzeppelin/contracts/token/ERC20/IERC20";
 export { IERC20__factory } from "./factories/@openzeppelin/contracts/token/ERC20/IERC20__factory";
-export type { Counter } from "./contracts/Counter";
-export { Counter__factory } from "./factories/contracts/Counter__factory";
-export type { FlashLoan } from "./contracts/FlashLoan";
-export { FlashLoan__factory } from "./factories/contracts/FlashLoan__factory";
+export type { FlashLoan } from "./contracts/FlashLoan.sol/FlashLoan";
+export { FlashLoan__factory } from "./factories/contracts/FlashLoan.sol/FlashLoan__factory";
+export type { IUniswapV2Router } from "./contracts/FlashLoan.sol/IUniswapV2Router";
+export { IUniswapV2Router__factory } from "./factories/contracts/FlashLoan.sol/IUniswapV2Router__factory";

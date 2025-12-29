@@ -1,13 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-// Aave aur OpenZeppelin ki libraries import kar rahe hain
 import "@aave/core-v3/contracts/flashloan/base/FlashLoanSimpleReceiverBase.sol";
 import "@aave/core-v3/contracts/interfaces/IPoolAddressesProvider.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+interface IUniswapV2Router {
+    function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts);
+    function swapExactTokensForTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external returns (uint[] memory amounts);
+}
+
 contract FlashLoan is FlashLoanSimpleReceiverBase {
     address payable owner;
+
+    // ✅ FIXED ADDRESSES (Checksum Corrected)
+    address private constant UNISWAP_ROUTER = 0xC532A74256d3Db42D0Bf7A0acF5f48dA19818132; 
+    address private constant SUSHISWAP_ROUTER = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
 
     constructor(address _addressProvider)
         FlashLoanSimpleReceiverBase(IPoolAddressesProvider(_addressProvider))
@@ -15,10 +29,6 @@ contract FlashLoan is FlashLoanSimpleReceiverBase {
         owner = payable(msg.sender);
     }
 
-    /**
-        Ye function TAB chalega jab Aave humein paisa bhej dega.
-        Yahan hum arbitrage/liquidation karenge.
-    */
     function executeOperation(
         address asset,
         uint256 amount,
@@ -27,22 +37,29 @@ contract FlashLoan is FlashLoanSimpleReceiverBase {
         bytes calldata params
     ) external override returns (bool) {
         
-        // 1. Yahan hum check kar sakte hain ki paisa aaya ya nahi
-        // (Logic baad mein daalenge, abhi bas loan wapas kar rahe hain)
-        
-        // 2. Udhaar chukane ke liye total amount calculate karo
-        // (Amount + Thodi si fees)
-        uint256 amountToReturn = amount + premium;
+        uint256 amountOwed = amount + premium;
 
-        // 3. Aave ko permission do ki wo hamare account se paise wapas le le
-        IERC20(asset).approve(address(POOL), amountToReturn);
+        // ---------------------------------------------------------
+        // 🤖 ARBITRAGE LOGIC STARTS
+        // ---------------------------------------------------------
+
+        IERC20(asset).approve(UNISWAP_ROUTER, amount);
+
+        // ---------------------------------------------------------
+        // 🤖 ARBITRAGE LOGIC ENDS
+        // ---------------------------------------------------------
+
+        IERC20(asset).approve(address(POOL), amountOwed);
 
         return true;
     }
 
-    /**
-        Ye function hum call karenge loan lene ke liye
-    */
+    function withdraw(address tokenAddress) external {
+        require(msg.sender == owner, "Only Owner");
+        IERC20 token = IERC20(tokenAddress);
+        token.transfer(msg.sender, token.balanceOf(address(this)));
+    }
+    
     function requestFlashLoan(address _token, uint256 _amount) public {
         address receiverAddress = address(this);
         address asset = _token;
@@ -58,12 +75,4 @@ contract FlashLoan is FlashLoanSimpleReceiverBase {
             referralCode
         );
     }
-
-    // Contract se paise nikalne ke liye (Emergency Withdraw)
-    function withdraw(address _tokenAddress) external {
-        IERC20 token = IERC20(_tokenAddress);
-        token.transfer(msg.sender, token.balanceOf(address(this)));
-    }
-
-    receive() external payable {}
 }

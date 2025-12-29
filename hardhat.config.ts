@@ -1,24 +1,22 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
-import * as dotenv from "dotenv";
 
-dotenv.config();
-
-// Ye check karega ki key hai ya nahi, taaki error na aaye
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
-const RPC_URL = process.env.SEPOLIA_RPC_URL;
+// Yahan apni Alchemy URL Dalein (Agar hai). 
+// Agar nahi hai toh maine ek Public URL daal diya hai (ye slow ho sakta hai)
+const MAINNET_RPC_URL = "https://eth-mainnet.g.alchemy.com/v2/Q4xnbs2OwbWpZAkgWfdBY"; 
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.10", // Aave ke liye ye version best hai
+  solidity: "0.8.20",
   networks: {
     hardhat: {
-      chainId: 31337,
+      forking: {
+        url: MAINNET_RPC_URL,
+      },
     },
     sepolia: {
-      url: RPC_URL || "", // Agar URL nahi mila to empty string
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [], // Agar Key nahi mili to empty array
-      chainId: 11155111,
-    },
+      url: "https://sepolia.infura.io/v3/...", // Purana wala rehne dein
+      accounts: [] // Apna private key yahan rakh sakte hain
+    }
   },
 };
 
