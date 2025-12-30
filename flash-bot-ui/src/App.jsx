@@ -1,25 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Activity, ShieldAlert, Zap, Box, Terminal, Play, Square } from 'lucide-react';
+import { io } from "socket.io-client"; // ✅ Socket Import
+import { LineChart, Line, Tooltip, ResponsiveContainer } from 'recharts';
+import { Activity, ShieldAlert, Zap, Box, Terminal, Play, Square, Settings } from 'lucide-react';
 import './App.css';
 
 // --- CONFIG ---
-const API_URL = "http://localhost:3001/api";
+const SERVER_URL = "http://localhost:3001";
+const socket = io(SERVER_URL); // ✅ WebSocket Connection
 
-// --- PARTICLE BACKGROUND COMPONENT ---
+// --- PARTICLE BACKGROUND (Same as before) ---
 const ParticleBackground = () => {
   const canvasRef = useRef(null);
-  
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-
     let particlesArray = [];
-    const numberOfParticles = 100;
-
     class Particle {
       constructor() {
         this.x = Math.random() * canvas.width;
@@ -41,48 +39,14 @@ const ParticleBackground = () => {
         ctx.fill();
       }
     }
-
-    function init() {
-      for (let i = 0; i < numberOfParticles; i++) {
-        particlesArray.push(new Particle());
-      }
-    }
-
+    for (let i = 0; i < 100; i++) particlesArray.push(new Particle());
     function animate() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (let i = 0; i < particlesArray.length; i++) {
-        particlesArray[i].update();
-        particlesArray[i].draw();
-        
-        // Draw connections
-        for (let j = i; j < particlesArray.length; j++) {
-          const dx = particlesArray[i].x - particlesArray[j].x;
-          const dy = particlesArray[i].y - particlesArray[j].y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          if (distance < 100) {
-            ctx.beginPath();
-            ctx.strokeStyle = `rgba(0, 242, 255, ${0.1 - distance/1000})`;
-            ctx.lineWidth = 1;
-            ctx.moveTo(particlesArray[i].x, particlesArray[i].y);
-            ctx.lineTo(particlesArray[j].x, particlesArray[j].y);
-            ctx.stroke();
-          }
-        }
-      }
+      particlesArray.forEach(p => { p.update(); p.draw(); });
       requestAnimationFrame(animate);
     }
-
-    init();
     animate();
-
-    const handleResize = () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
   }, []);
-
   return <canvas ref={canvasRef} className="particle-canvas" />;
 };
 
@@ -92,153 +56,168 @@ function App() {
     status: "OFFLINE",
     lastBlock: 0,
     targetsFound: 0,
+    gasLimit: 500000,
     logs: []
   });
-
-  // Mock data for chart (Graph ko zinda dikhane ke liye)
+  
+  const [liquidationData, setLiquidationData] = useState([]); // 📋 Table Data
   const [chartData, setChartData] = useState([]);
+  const [inputGas, setInputGas] = useState(500000);
   const logsEndRef = useRef(null);
 
+  // ✅ SOCKET.IO LISTENERS (Real-time Magic)
   useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const res = await axios.get(`${API_URL}/status`);
-        if (res.data) {
-          setStats(res.data);
-          
-          // Update Chart Data (Simulated Gas/Activity)
-          setChartData(prev => {
-            const newData = [...prev, { time: '', val: Math.random() * 100 + 50 }];
+    socket.on("connect", () => console.log("✅ Connected to Socket Server"));
+    
+    // Status & Logs Update
+    socket.on("status_update", (data) => {
+        setStats(prev => ({ ...prev, ...data }));
+        // Simulate Chart Data
+        setChartData(prev => {
+            const newData = [...prev, { val: Math.random() * 100 + 50 }];
             if (newData.length > 20) newData.shift();
             return newData;
-          });
-        }
-      } catch (error) { /* Silent */ }
-    };
+        });
+    });
 
-    const interval = setInterval(fetchStatus, 1000);
-    return () => clearInterval(interval);
+    // Logs only update
+    socket.on("log_update", (logs) => {
+        setStats(prev => ({ ...prev, logs }));
+    });
+
+    // Liquidation JSON Data
+    socket.on("liquidation_data", (data) => {
+        setLiquidationData(data);
+    });
+
+    return () => socket.off(); // Cleanup
   }, []);
 
+  // Auto Scroll Logs
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [stats.logs]);
 
-  const startBot = async () => {
-    try { await axios.post(`${API_URL}/start`); } catch (e) { alert("Backend Offline"); }
-  };
-  const stopBot = async () => {
-    try { await axios.post(`${API_URL}/stop`); } catch (e) { alert("Backend Offline"); }
+  // Actions
+  const startBot = async () => { await axios.post(`${SERVER_URL}/api/start`); };
+  const stopBot = async () => { await axios.post(`${SERVER_URL}/api/stop`); };
+  
+  const updateGas = async () => {
+    await axios.post(`${SERVER_URL}/api/settings`, { gasLimit: inputGas });
+    alert(`Gas Limit Updated to ${inputGas}`);
   };
 
   return (
     <>
       <ParticleBackground />
-      
       <div className="dashboard-container">
         
-        {/* HEADER SECTION */}
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+        {/* HEADER */}
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
           <div>
-            <h1>⚡ FlashCore <span style={{fontSize:'1rem', color:'#555'}}>PRO</span></h1>
-            <p style={{color: 'rgba(255,255,255,0.6)', marginTop: '5px'}}>Autonomous Liquidation Engine / Base Mainnet</p>
+            <h1>⚡ FlashCore <span style={{fontSize:'1rem', color:'#555'}}>PHASE 4</span></h1>
+            <p style={{color: 'rgba(255,255,255,0.6)'}}>Socket.io Connected / Live Monitor</p>
           </div>
           <div className={`glass-card`} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 20px' }}>
-            <div style={{ 
-              width: '10px', height: '10px', borderRadius: '50%', 
-              background: stats.status === "SCANNING" ? '#00ff41' : '#ff0000',
-              boxShadow: stats.status === "SCANNING" ? '0 0 10px #00ff41' : '0 0 10px #ff0000'
-            }} />
-            <span style={{ fontWeight: 'bold', letterSpacing: '1px' }}>
-              {stats.status || "SYSTEM OFFLINE"}
-            </span>
+            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: stats.status === "SCANNING" ? '#00ff41' : '#ff0000', boxShadow: stats.status === "SCANNING" ? '0 0 10px #00ff41' : 'none' }} />
+            <span style={{ fontWeight: 'bold' }}>{stats.status || "OFFLINE"}</span>
           </div>
         </header>
 
-        {/* CONTROL DECK */}
-        <div className="glass-card" style={{ marginBottom: '30px', display: 'flex', gap: '20px', alignItems: 'center' }}>
-          <button className="btn btn-start" onClick={startBot}>
-            <Play size={20} /> ACTIVATE PROTOCOL
-          </button>
-          <button className="btn btn-stop" onClick={stopBot}>
-            <Square size={20} /> KILL SWITCH
-          </button>
-          <div style={{ marginLeft: 'auto', color: '#888', fontSize: '0.9rem' }}>
-            <Zap size={16} style={{display:'inline', marginBottom:'-3px'}} /> Latency: 42ms
+        {/* CONTROL PANEL (Buttons + Gas Input) */}
+        <div className="glass-card" style={{ marginBottom: '20px', display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button className="btn btn-start" onClick={startBot}><Play size={20} /> START</button>
+          <button className="btn btn-stop" onClick={stopBot}><Square size={20} /> STOP</button>
+          
+          {/* ⛽ GAS LIMIT SETTING */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto', background: 'rgba(0,0,0,0.4)', padding: '5px 15px', borderRadius: '8px' }}>
+            <Settings size={18} color="#00f2ff" />
+            <span style={{fontSize: '0.9rem', color: '#ccc'}}>GAS LIMIT:</span>
+            <input 
+                type="number" 
+                value={inputGas} 
+                onChange={(e) => setInputGas(Number(e.target.value))}
+                style={{ background: 'transparent', border: 'none', color: '#fff', width: '80px', fontWeight: 'bold', borderBottom: '1px solid #555' }} 
+            />
+            <button onClick={updateGas} style={{background: '#00f2ff', border:'none', borderRadius:'4px', cursor:'pointer', fontWeight:'bold', fontSize:'0.8rem', padding:'2px 8px'}}>SET</button>
           </div>
         </div>
 
-        {/* STATS GRID */}
+        {/* METRICS GRID */}
         <div className="grid-cols-2">
-          
-          {/* LEFT COLUMN: METRICS */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            
-            {/* Stat Cards Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-              <div className="glass-card">
-                <Box size={30} color="#00f2ff" />
-                <div style={{marginTop: '15px'}}>
-                  <div className="stat-label">Current Block</div>
-                  <div className="stat-value">#{stats.lastBlock || "0000"}</div>
-                </div>
-              </div>
-              <div className="glass-card">
-                <ShieldAlert size={30} color="#ff0055" />
-                <div style={{marginTop: '15px'}}>
-                  <div className="stat-label">Targets Locked</div>
-                  <div className="stat-value">{stats.targetsFound || 0}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* CHART AREA */}
-            <div className="glass-card" style={{ flex: 1, minHeight: '250px' }}>
-              <h3><Activity size={16} style={{display:'inline'}} /> Network Activity (Gas/Volume)</h3>
-              <div style={{ width: '100%', height: '200px', marginTop: '20px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
-                    <Tooltip 
-                      contentStyle={{backgroundColor: '#000', border: '1px solid #333', color: '#fff'}} 
-                      itemStyle={{color: '#00f2ff'}}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="val" 
-                      stroke="#00f2ff" 
-                      strokeWidth={2} 
-                      dot={false} 
-                      activeDot={{ r: 8, fill: '#fff' }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-          </div>
-
-          {/* RIGHT COLUMN: LOGS */}
-          <div className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>
-              <Terminal size={16} style={{display:'inline'}} /> Live Execution Log
-            </h3>
-            <div className="terminal-window">
-              {(!stats.logs || stats.logs.length === 0) ? (
-                <div style={{ color: '#444', textAlign: 'center', marginTop: '100px' }}>
-                  // SYSTEM IDLE<br/>// WAITING FOR COMMAND...
-                </div>
-              ) : (
-                stats.logs.map((log, index) => (
-                  <div key={index} className="log-entry">
-                    <span className="log-time">[{new Date().toLocaleTimeString().split(' ')[0]}]</span>
-                    <span className="log-msg">{'>'} {log}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {/* Stats */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                  <div className="glass-card">
+                    <Box size={30} color="#00f2ff" />
+                    <div style={{marginTop: '10px'}}>
+                      <div className="stat-label">Block Height</div>
+                      <div className="stat-value">#{stats.lastBlock}</div>
+                    </div>
                   </div>
-                ))
-              )}
-              <div ref={logsEndRef} />
-            </div>
-          </div>
+                  <div className="glass-card">
+                    <ShieldAlert size={30} color="#ff0055" />
+                    <div style={{marginTop: '10px'}}>
+                      <div className="stat-label">Opp. Found</div>
+                      <div className="stat-value">{stats.targetsFound}</div>
+                    </div>
+                  </div>
+                </div>
 
+                {/* 📋 LIVE MONITOR (TABLE) */}
+                <div className="glass-card" style={{ flex: 1 }}>
+                    <h3><Activity size={16} style={{display:'inline'}} /> Priority Liquidations</h3>
+                    <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '0.9rem', color: '#ddd' }}>
+                        <thead>
+                            <tr style={{ borderBottom: '1px solid #333', color: '#00f2ff' }}>
+                                <th style={{padding: '8px'}}>Token</th>
+                                <th>User</th>
+                                <th>Health</th>
+                                <th>Est. Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {liquidationData.length === 0 ? (
+                                <tr><td colSpan="4" style={{textAlign:'center', padding:'20px'}}>No Targets Yet...</td></tr>
+                            ) : (
+                                liquidationData.map((row, i) => (
+                                    <tr key={i} style={{ borderBottom: '1px solid #222' }}>
+                                        <td style={{padding: '8px', color: '#fff', fontWeight:'bold'}}>{row.token}</td>
+                                        <td style={{fontFamily: 'monospace', color: '#888'}}>{row.user}</td>
+                                        <td style={{color: row.health < 1 ? '#ff0055' : '#00ff41'}}>{row.health}</td>
+                                        <td style={{color: '#00ff41'}}>{row.profit}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* RIGHT: LOGS & CHART */}
+            <div className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
+                <h3><Zap size={16} style={{display:'inline'}} /> Profit Analytics</h3>
+                <div style={{ width: '100%', height: '150px', marginBottom: '20px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData}>
+                        <Tooltip contentStyle={{backgroundColor: '#000', border: '1px solid #333'}} />
+                        <Line type="monotone" dataKey="val" stroke="#00f2ff" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                </div>
+
+                <h3 style={{ borderTop: '1px solid #333', paddingTop: '15px' }}>
+                  <Terminal size={16} style={{display:'inline'}} /> Terminal
+                </h3>
+                <div className="terminal-window" style={{height: '200px'}}>
+                  {stats.logs.map((log, index) => (
+                    <div key={index} className="log-entry">
+                      <span className="log-msg">{'>'} {log}</span>
+                    </div>
+                  ))}
+                  <div ref={logsEndRef} />
+                </div>
+            </div>
         </div>
       </div>
     </>
