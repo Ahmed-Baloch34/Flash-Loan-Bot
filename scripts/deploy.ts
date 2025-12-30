@@ -1,20 +1,31 @@
-import hre from "hardhat"; 
+import { ethers } from "hardhat";
 
 async function main() {
-  console.log("🚀 Deploying FlashLoan Contract...");
+  console.log("=================================================");
+  console.log("🚀 DEPLOYING FLASH LIQUIDATION CONTRACT");
+  console.log("=================================================");
+  console.log("network: Base Mainnet");
 
-  // Aave V3 PoolAddressesProvider (Sepolia)
-  const providerAddress = "0x012bAC54348C0E635dCAc9D5FB99f06F24136C9A";
+  // ✅ ADDRESS (Lowercase to avoid checksum error)
+  const providerAddress = "0xe20fcbdb66b08818db290d8f9edb576931a69637";
 
-  // Note: Hum ab 'hre.ethers' use kar rahe hain
-  const FlashLoan = await hre.ethers.getContractFactory("FlashLoan");
-  const flashLoan = await FlashLoan.deploy(providerAddress);
+  const FlashLiquidation = await ethers.getContractFactory("FlashLiquidation");
+  
+  console.log("⏳ Deploying... (Please wait)");
+  
+  // 👇 FIX: Humne yahan 'gasLimit' manual set kiya hai
+  const flashLiquidator = await FlashLiquidation.deploy(providerAddress, {
+    gasLimit: 5000000, 
+  });
 
-  await flashLoan.waitForDeployment();
+  await flashLiquidator.waitForDeployment();
 
-  console.log("✅ Contract Deployed Successfully!");
-  console.log("📜 Contract Address:", await flashLoan.getAddress());
-  console.log("👉 Is Address ko copy karke sambhal lein!");
+  const address = await flashLiquidator.getAddress();
+  
+  console.log("\n✅ SUCCESS! Contract Deployed.");
+  console.log("-------------------------------------------------");
+  console.log("📜 CONTRACT ADDRESS:", address);
+  console.log("-------------------------------------------------");
 }
 
 main().catch((error) => {
